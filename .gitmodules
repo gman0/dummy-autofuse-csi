@@ -1,0 +1,3 @@
+[submodule "autofs"]
+	path = autofs
+	url = git://git.kernel.org/pub/scm/linux/storage/autofs/autofs.git

@@ -1,0 +1,176 @@
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: {{ include "dummy-autofuse-csi.fullname" . }}-nodeplugin
+  labels:
+    {{- include "dummy-autofuse-csi.labels" . | nindent 4 }}
+    component: nodeplugin
+spec:
+  updateStrategy: {{ toYaml .Values.nodeplugin.updateStrategySpec | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "dummy-autofuse-csi.selectorLabels" . | nindent 6 }}
+      component: nodeplugin
+  template:
+    metadata:
+      labels:
+        {{- include "dummy-autofuse-csi.selectorLabels" . | nindent 8 }}
+        component: nodeplugin
+    spec:
+      hostPID: true
+      containers:
+      - name: registrar
+        image: {{ .Values.images.registrar.repository }}:{{ .Values.images.registrar.tag }}
+        imagePullPolicy: {{ .Values.images.registrar.pullPolicy }}
+        args:
+        - -v={{ .Values.logVerbosityLevel }}
+        - --csi-address=$(CSI_ADDRESS)
+        - --kubelet-registration-path=$(KUBELET_CSI_REGISTRATION_PATH)
+        env:
+        - name: CSI_ADDRESS
+          value: /csi/{{ .Values.csiPluginSocketFile }}
+        - name: KUBELET_CSI_REGISTRATION_PATH
+          value: {{ .Values.kubeletDirectory }}/plugins/{{ .Values.csiDriverName }}/{{ .Values.csiPluginSocketFile }}
+        volumeMounts:
+        - name: plugin-dir
+          mountPath: /csi
+        - name: registration-dir
+          mountPath: /registration
+        {{- with .Values.nodeplugin.registrar.resources }}
+        resources: {{ toYaml . | nindent 12 }}
+        {{- end }}
+      - name: nodeplugin
+        image: {{ .Values.images.driver.repository }}:{{ .Values.images.driver.tag }}
+        imagePullPolicy: {{ .Values.images.driver.pullPolicy }}
+        command: [/usr/local/bin/csi-driver]
+        args:
+        - -v={{ .Values.logVerbosityLevel }}
+        - --nodeid=$(NODE_ID)
+        - --endpoint=$(CSI_ENDPOINT)
+        - --drivername=$(CSI_DRIVERNAME)
+        - --role=identity,node
+        - --automount-startup-timeout={{ .Values.automountDaemonStartupTimeout }}
+        imagePullPolicy: {{ .Values.images.driver.pullPolicy }}
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+          allowPrivilegeEscalation: true
+        env:
+        - name: NODE_ID
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: CSI_ENDPOINT
+          value: unix://{{ .Values.kubeletDirectory }}/plugins/{{ .Values.csiDriverName }}/{{ .Values.csiPluginSocketFile }}
+        - name: CSI_DRIVERNAME
+          value: {{ .Values.csiDriverName }}
+        volumeMounts:
+        - name: plugin-dir
+          mountPath: {{ .Values.kubeletDirectory }}/plugins/{{ .Values.csiDriverName }}
+        - name: pods-mount-dir
+          mountPath: /var/lib/kubelet/pods
+          mountPropagation: Bidirectional
+        - mountPath: /sys
+          name: host-sys
+        - name: lib-modules
+          mountPath: /lib/modules
+          readOnly: true
+        - name: host-dev
+          mountPath: /dev
+        - name: autofs-root
+          mountPath: /dummy
+          mountPropagation: Bidirectional
+        {{- with .Values.nodeplugin.nodeplugin.resources }}
+        resources: {{ toYaml . | nindent 12 }}
+        {{- end }}
+      - name: automount
+        image: {{ .Values.images.driver.repository }}:{{ .Values.images.driver.tag }}
+        imagePullPolicy: {{ .Values.images.driver.pullPolicy }}
+        command: [/usr/local/bin/automount-runner]
+        args:
+        - -v={{ .Values.logVerbosityLevel }}
+        - --unmount-timeout={{ .Values.automountDaemonUnmountTimeout }}
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+          allowPrivilegeEscalation: true
+        volumeMounts:
+        - mountPath: /sys
+          name: host-sys
+        - name: lib-modules
+          mountPath: /lib/modules
+          readOnly: true
+        - name: host-dev
+          mountPath: /dev
+        - name: autofs-root
+          mountPath: /dummy
+          mountPropagation: Bidirectional
+        {{- with .Values.nodeplugin.automount.resources }}
+        resources: {{ toYaml . | nindent 12 }}
+        {{- end }}
+      - name: reconciler
+        image: {{ .Values.images.driver.repository }}:{{ .Values.images.driver.tag }}
+        command: [/usr/local/bin/automount-reconciler]
+        args:
+        - -v={{ .Values.logVerbosityLevel }}
+        - --period={{ .Values.reconcileMountsPeriod }}
+        imagePullPolicy: {{ .Values.images.driver.pullPolicy }}
+        securityContext:
+          privileged: true
+          capabilities:
+            add: ["SYS_ADMIN"]
+          allowPrivilegeEscalation: true
+        volumeMounts:
+        - mountPath: /sys
+          name: host-sys
+        - name: lib-modules
+          mountPath: /lib/modules
+          readOnly: true
+        - name: host-dev
+          mountPath: /dev
+        - name: autofs-root
+          mountPath: /dummy
+          mountPropagation: Bidirectional
+        {{- with .Values.nodeplugin.reconciler.resources }}
+        resources: {{ toYaml . | nindent 12 }}
+        {{- end }}
+      volumes:
+      - name: plugin-dir
+        hostPath:
+          path: {{ .Values.kubeletDirectory }}/plugins/{{ .Values.csiDriverName }}
+          type: DirectoryOrCreate
+      - name: registration-dir
+        hostPath:
+          path: {{ .Values.kubeletDirectory }}/plugins_registry
+          type: DirectoryOrCreate
+      - name: pods-mount-dir
+        hostPath:
+          path: /var/lib/kubelet/pods
+          type: Directory
+      - name: host-sys
+        hostPath:
+          path: /sys
+      - name: lib-modules
+        hostPath:
+          path: /lib/modules
+      - name: host-dev
+        hostPath:
+          path: /dev
+      - name: autofs-root
+        hostPath:
+          path: {{ .Values.automountHostPath }}
+          type: DirectoryOrCreate
+      {{- with .Values.nodeplugin.affinity }}
+      affinity: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeplugin.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeplugin.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.nodeplugin.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}

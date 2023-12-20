@@ -1,0 +1,7 @@
+#!/bin/sh
+
+fsname="${1}"
+
+[[ "x${fsname}" == "x" ]] && { >&2 echo "Missing argument <fsname>" ; exit 1 ; }
+
+echo -n "-fstype=fuse3 :dummy-fuse"

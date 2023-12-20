@@ -1,0 +1,78 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: {{ include "dummy-autofuse-csi.fullname" . }}-controllerplugin
+  labels:
+    {{- include "dummy-autofuse-csi.labels" . | nindent 4 }}
+    component: controllerplugin
+spec:
+  replicas: {{ .Values.controllerplugin.replicas }}
+  strategy: {{ toYaml .Values.controllerplugin.deploymentStrategySpec | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "dummy-autofuse-csi.selectorLabels" . | nindent 6 }}
+      component: controllerplugin
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "dummy-autofuse-csi.selectorLabels" . | nindent 8 }}
+        component: controllerplugin
+    spec:
+      serviceAccountName: {{ include "dummy-autofuse-csi.serviceAccountName.controllerplugin" . }}
+      containers:
+      - name: provisioner
+        image: {{ .Values.images.provisioner.repository }}:{{ .Values.images.provisioner.tag }}
+        imagePullPolicy: {{ .Values.images.provisioner.pullPolicy }}
+        args:
+        - -v={{ .Values.logVerbosityLevel }}
+        - --csi-address=$(CSI_ADDRESS)
+        - --leader-election=true
+        env:
+        - name: CSI_ADDRESS
+          value: unix:///csi/{{ .Values.csiPluginSocketFile }}
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /csi
+        {{- with .Values.controllerplugin.provisioner.resources }}
+        resources: {{ toYaml . | nindent 12 }}
+        {{- end }}
+      - name: controllerplugin
+        image: {{ .Values.images.driver.repository }}:{{ .Values.images.driver.tag }}
+        imagePullPolicy: {{ .Values.images.driver.pullPolicy }}
+        command: [/usr/local/bin/csi-driver]
+        args:
+        - -v={{ .Values.logVerbosityLevel }}
+        - --nodeid=$(NODE_ID)
+        - --endpoint=$(CSI_ENDPOINT)
+        - --drivername=$(CSI_DRIVERNAME)
+        - --role=identity,controller
+        env:
+        - name: CSI_ENDPOINT
+          value: unix:///csi/{{ .Values.csiPluginSocketFile }}
+        - name: CSI_DRIVERNAME
+          value: {{ .Values.csiDriverName }}
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /csi
+        {{- with .Values.controllerplugin.controllerplugin.resources }}
+        resources: {{ toYaml . | nindent 12 }}
+        {{- end }}
+      volumes:
+      - name: socket-dir
+        emptyDir: {}
+      {{- with .Values.controllerplugin.affinity }}
+      affinity: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controllerplugin.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controllerplugin.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controllerplugin.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}

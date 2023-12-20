@@ -1,0 +1,162 @@
+# Default values for dummy-autofuse-csi.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+controllerplugin:
+  # Component name. Used as `component` label value
+  # and to generate DaemonSet name.
+  name: controllerplugin
+
+  replicas: 1
+
+  # Deployment update strategy.
+  deploymentStrategySpec:
+    type: RollingUpdate
+
+  # Pod priority class name.
+  priorityClassName: ""
+
+  # Pod node selector.
+  nodeSelector: {}
+
+  # Pod node tolerations.
+  tolerations: []
+
+  # Pod node affinity.
+  affinity: {}
+
+  # ServiceAccount to use with Controller plugin Deployment.
+  serviceAccount:
+
+    # Name of the ServiceAccount (to use and/or create).
+    # If no name is provided, Helm chart will generate one.
+    serviceAccountName: ""
+
+    # Whether to create ServiceAccount in the eosxd CSI namespace.
+    # If not, it is expected the ServiceAccount is already present.
+    create: true
+
+  # RBAC rules assigned to the ServiceAccount defined above.
+  rbac:
+
+    # Whether to create RBACs in the eosxd CSI namespace.
+    # If not, it is expected they are already present.
+    create: true
+
+  provisioner:
+    resources: {}
+
+  controllerplugin:
+    resources: {}
+
+
+nodeplugin:
+
+  # Component name. Used as `component` label value
+  # and to generate DaemonSet name.
+  name: nodeplugin
+
+  # Pod priority class name.
+  priorityClassName: system-node-critical
+
+  # Pod node selector.
+  nodeSelector: {}
+
+  # Pod node tolerations.
+  tolerations: []
+
+  # Pod node affinity.
+  affinity: {}
+
+  registrar:
+    resources: {}
+
+  nodeplugin:
+    resources: {}
+
+  automount:
+    resources: {}
+
+  reconciler:
+    resources: {}
+
+
+images:
+  driver:
+    repository: registry.cern.ch/rvasek/dummy-autofuse-csi
+    tag: master
+    pullPolicy: Always
+  provisioner:
+    repository: k8s.gcr.io/sig-storage/csi-provisioner
+    tag: v3.2.1
+    pullPolicy: IfNotPresent
+  registrar:
+    repository: registry.k8s.io/sig-storage/csi-node-driver-registrar
+    tag: v2.5.1
+    pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podAnnotations: {}
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+automountHostPath: /var/dummy
+# Number of seconds to wait for automount daemon to start up before exiting.
+automountDaemonStartupTimeout: 10
+# Number of seconds of idle time after which an autofs-managed eosxd mount will
+# be unmounted. '0' means never unmount, '-1' leaves automount default option.
+automountDaemonUnmountTimeout: 600
+# Reconcile broken /dummy/* mounts in specified interval.
+reconcileMountsPeriod: 10s
+
+
+storageClass:
+  create: true
+  className: dummy
+
+# Log verbosity level.
+# See https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md
+# for description of individual verbosity levels.
+logVerbosityLevel: 4
+
+# eosxd CSI driver name used as driver identifier by Kubernetes.
+# Must follow DNS notation format (https://tools.ietf.org/html/rfc1035#section-2.3.1),
+# and must be 63 characters or less.
+csiDriverName: dummy-autofuse-csi
+
+# Kubelet's plugin directory path. By default, kubelet uses /var/lib/kubelet/plugins.
+# This value may need to be changed if kubelet's root dir (--root-dir) differs from
+# this default path.
+kubeletDirectory: /var/lib/kubelet
+
+# Name of the eosxd CSI socket file. eosxd CSI socket file will be stored under
+# <kubeletPluginDirectory>/plugins/<csiDriverName>/<csiPluginSocketFile>.
+csiPluginSocketFile: csi.sock
+
