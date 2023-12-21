@@ -102,6 +102,7 @@ func RunBlocking() error {
 	args := []string{
 		"--foreground",
 		"--verbose",
+		"--debug",
 	}
 
 	isAutofs, err := IsAutofs("/dummy")
