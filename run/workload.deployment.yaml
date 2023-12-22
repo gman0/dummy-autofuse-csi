@@ -14,19 +14,20 @@ spec:
     spec:
       containers:
       - name: dummy-workload
-        image: registry.cern.ch/rvasek/dummy-fuse-csi:latest
+        image: registry.cern.ch/rvasek/dummy-autofuse-csi:master
         imagePullPolicy: Always
-        command: ["/bin/dummy-fuse-workload"]
+        command: ["/usr/local/bin/dummy-fuse-workload"]
         args: [
-          "--file", "/mnt/dummy-file.txt",
+          "--file", "/mnt/x/dummy-file.txt",
           # "--exit-on-error",
           # "--keep-open",
         ]
-        volumeMounts:
-        - name: mypvc
-          mountPath: /mnt
+      volumeMounts:
+      - name: mypvc
+        mountPath: /mnt
+        mountPropagation: HostToContainer
       volumes:
       - name: mypvc
         persistentVolumeClaim: 
-          claimName: dummy-fuse-pvc
+          claimName: dummy-autofuse-pvc
           readOnly: false

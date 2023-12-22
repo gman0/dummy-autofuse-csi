@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dummy-autofuse-idle
+spec:
+  containers:
+  - name: idle
+    image: registry.cern.ch/rvasek/dummy-autofuse-csi:master
+    imagePullPolicy: IfNotPresent
+    command: [ "/bin/sh", "-c", "trap : TERM INT; (while true; do sleep 1000; done) & wait" ]
+    volumeMounts:
+    - name: mypvc
+      mountPath: /mnt
+      mountPropagation: HostToContainer
+  volumes:
+  - name: mypvc
+    persistentVolumeClaim: 
+      claimName: dummy-autofuse-pvc
+      readOnly: false

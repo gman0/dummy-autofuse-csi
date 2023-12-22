@@ -1,0 +1,28 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: dummy-idle
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dummy-idle
+  template:
+    metadata:
+      labels:
+        app: dummy-idle
+    spec:
+      containers:
+      - name: idle
+        image: registry.cern.ch/rvasek/dummy-autofuse-csi:master
+        imagePullPolicy: IfNotPresent
+        command: [ "/bin/sh", "-c", "trap : TERM INT; (while true; do sleep 1000; done) & wait" ]
+        volumeMounts:
+        - name: mypvc
+          mountPath: /mnt
+          mountPropagation: HostToContainer
+      volumes:
+      - name: mypvc
+        persistentVolumeClaim: 
+          claimName: dummy-autofuse-pvc
+          readOnly: false

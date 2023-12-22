@@ -58,6 +58,7 @@ func main() {
 
 	if *keepOpen {
 		try("failed to open file:", func() error {
+			log.Println("about to open file")
 			f, err = os.OpenFile(*filePath, os.O_RDONLY, 0644)
 			return err
 		})
@@ -70,6 +71,7 @@ func main() {
 	} else {
 		loop("read file", "failed to read file:", func() error {
 			try("failed to open file:", func() error {
+				log.Println("about to open file")
 				f, err = os.OpenFile(*filePath, os.O_RDONLY, 0644)
 				return err
 			})
