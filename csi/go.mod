@@ -1,6 +1,8 @@
 module github.com/gman0/dummy-autofuse-csi
 
-go 1.20
+go 1.21
+
+toolchain go1.21.7
 
 require (
 	github.com/container-storage-interface/spec v1.9.0
