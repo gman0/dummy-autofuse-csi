@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"syscall"
 
-	"github.com/gman0/dummy-autofuse-csi/internal/dummy/env"
+	// "github.com/gman0/dummy-autofuse-csi/internal/dummy/env"
 	"github.com/gman0/dummy-autofuse-csi/internal/exec"
 	"github.com/gman0/dummy-autofuse-csi/internal/log"
 )
@@ -103,6 +103,7 @@ func RunBlocking() error {
 		"--foreground",
 		"--verbose",
 		"--debug",
+		"-x",
 	}
 
 	isAutofs, err := IsAutofs("/dummy")
@@ -144,7 +145,7 @@ func RunBlocking() error {
 
 	// Catch SIGTERM and SIGKILL and forward it to the automount process.
 
-	autofsTryCleanAtExit := env.GetAutofsTryCleanAtExit()
+	// autofsTryCleanAtExit := env.GetAutofsTryCleanAtExit()
 
 	sigCh := make(chan os.Signal, 2)
 	defer close(sigCh)
@@ -158,36 +159,38 @@ func RunBlocking() error {
 				break
 			}
 
-			if !autofsTryCleanAtExit && sig == syscall.SIGTERM {
-				// automount daemon unmounts the autofs root in /dummy upon
-				// receiving SIGTERM. This makes it impossible to reconnect
-				// the daemon to the mount later, so all consumer Pods will
-				// loose their mounts dummy-fuse, without the possibility of
-				// restoring them (unless these Pods are restarted too). The
-				// implication is that the nodeplugin is just being restarted,
-				// and will be needed again.
-				//
-				// SIGKILL is handled differently in automount, as this forces
-				// the daemon to skip the cleanup at exit, leaving the autofs
-				// mount behind and making it possible to reconnect to it later.
-				// We make a use of this, and unless the admin doesn't explicitly
-				// ask for cleanup with AUTOFS_TRY_CLEAN_AT_EXIT env var, no cleanup
-				// is done.
-				//
-				// Also, we intentionally don't unmount the existing autofs-managed
-				// mounts inside /dummy, so that any existing consumers receive ENOTCONN
-				// (due to broken FUSE mounts), so that accidental `mkdir -p` won't
-				// succeed. They are cleaned by the daemon on startup.
-				//
-				// TODO: remove this once the automount daemon supports skipping
-				//       cleanup (via a command line flag).
+			/*
+				if !autofsTryCleanAtExit && sig == syscall.SIGTERM {
+					// automount daemon unmounts the autofs root in /dummy upon
+					// receiving SIGTERM. This makes it impossible to reconnect
+					// the daemon to the mount later, so all consumer Pods will
+					// loose their mounts dummy-fuse, without the possibility of
+					// restoring them (unless these Pods are restarted too). The
+					// implication is that the nodeplugin is just being restarted,
+					// and will be needed again.
+					//
+					// SIGKILL is handled differently in automount, as this forces
+					// the daemon to skip the cleanup at exit, leaving the autofs
+					// mount behind and making it possible to reconnect to it later.
+					// We make a use of this, and unless the admin doesn't explicitly
+					// ask for cleanup with AUTOFS_TRY_CLEAN_AT_EXIT env var, no cleanup
+					// is done.
+					//
+					// Also, we intentionally don't unmount the existing autofs-managed
+					// mounts inside /dummy, so that any existing consumers receive ENOTCONN
+					// (due to broken FUSE mounts), so that accidental `mkdir -p` won't
+					// succeed. They are cleaned by the daemon on startup.
+					//
+					// TODO: remove this once the automount daemon supports skipping
+					//       cleanup (via a command line flag).
 
-				log.Debugf("Sending SIGKILL to automount daemon")
+					log.Debugf("Sending SIGKILL to automount daemon")
 
-				exitedWithSigTerm.Store(true)
-				cmd.Process.Signal(syscall.SIGKILL)
-				break
-			}
+					exitedWithSigTerm.Store(true)
+					cmd.Process.Signal(syscall.SIGKILL)
+					break
+				}
+			*/
 
 			cmd.Process.Signal(sig)
 		}
